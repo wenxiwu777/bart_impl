@@ -1,7 +1,7 @@
 # bart_impl
 This is my version of implementation for BART
 
-This is the original place where it is from: http://www.cse.chalmers.se/~uffe/BART/,
+Here is the original place where it is from: http://www.cse.chalmers.se/~uffe/BART/,
 
 and i discorved it from libing_zeng's blog(here is the post: https://blog.csdn.net/libing_zeng/article/details/80632942).
 
