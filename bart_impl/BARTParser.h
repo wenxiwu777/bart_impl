@@ -12,6 +12,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <vector>
+#include <string>
+#include <map>
+
+using std::vector;
+using std::string;
+using std::map;
+
 namespace BART {
 
 struct BARTVec3 {
@@ -31,9 +39,83 @@ struct BARTView {
     
 };
 
+struct BARTLight {
+    BARTVec3 pos;
+    BARTVec3 col;
+    int is_animated;
+    string name;
+    
+};
+
+struct BARTBackground {
+    BARTVec3 bgcolor;
+    
+};
+
+struct BARTMaterial {
+    BARTVec3 amb;
+    BARTVec3 diff;
+    BARTVec3 spec;
+    float shine;
+    float T;
+    float IOR; // index of refraction
+};
+
+class BARTShape {
+public:
+    enum Type { UNKNOWN = -1, CONE = 0, SHPERE, MESH, };
+    
+public:
+    BARTShape() {
+        mType = UNKNOWN;
+    }
+    
+public:
+    inline Type GetType() const {
+        return mType;
+    }
+    
+protected:
+    Type mType; // only can be set by its sub-classes, but can be read via GetType() from outer
+    
+};
+
+class BARTCone : public BARTShape {
+public:
+    BARTCone() {
+        mType = BARTShape::CONE;
+    }
+    
+public:
+    BARTVec3 base_pt;
+    BARTVec3 apex_pt;
+    float r0;
+    float r1;
+    
+};
+
+class BARTSphere : public BARTShape {
+public:
+    BARTSphere() {
+        mType = BARTShape::SHPERE;
+    }
+    
+public:
+    BARTVec3 center;
+    float radius;
+    
+};
+
+//
 class BARTSceneInfo {
 public:
     BARTView mView;
+    BARTLight mLight;
+    BARTBackground mBack;
+    
+    map<string, BARTMaterial> mMats; // hold all materials in the scene
+    
+    map<string, BARTShape *> mObjs; // hold all objects in the scene
     
 public:
     BARTSceneInfo();
@@ -48,15 +130,26 @@ public:
     ~BARTParser();
     
 public:
+    void InitParser(void);
+    
     // exit on failure
     bool ParseFile(const char *path);
     
-private:
-    // underlying parsing functions
-    bool parse_comment(FILE *scene);
-    bool parse_viewport(FILE *scene);
+    void DoneParser(void);
     
 private:
+    // underlying parser's functions
+    bool parse_comment(FILE *scene);
+    bool parse_viewport(FILE *scene);
+    bool parse_light(FILE *scene);
+    bool parse_background(FILE *scene);
+    bool parse_material(FILE *scene); //
+    bool parse_cone(FILE *scene);
+    bool parse_sphere(FILE *scene);
+    
+private:
+    int mObjCounter;
+    string mObjID;
     BARTSceneInfo mSceneInfo;
     
 };
