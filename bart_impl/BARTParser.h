@@ -63,7 +63,13 @@ struct BARTMaterial {
 
 class BARTShape {
 public:
-    enum Type { UNKNOWN = -1, CONE = 0, SHPERE, MESH, };
+    enum Type {
+        UNKNOWN = -1,
+        CONE = 0,
+        SHPERE,
+        POLY,
+        POLY_PATCH,
+        MESH, };
     
 public:
     BARTShape() {
@@ -82,27 +88,81 @@ protected:
 
 class BARTCone : public BARTShape {
 public:
-    BARTCone() {
-        mType = BARTShape::CONE;
-    }
-    
-public:
     BARTVec3 base_pt;
     BARTVec3 apex_pt;
     float r0;
     float r1;
     
+public:
+    BARTCone() {
+        mType = BARTShape::CONE;
+    }
+    
 };
 
 class BARTSphere : public BARTShape {
+public:
+    BARTVec3 center;
+    float radius;
+    
 public:
     BARTSphere() {
         mType = BARTShape::SHPERE;
     }
     
+};
+
+class BARTPolygon : public BARTShape {
 public:
-    BARTVec3 center;
-    float radius;
+    vector<BARTVec3> mPts;
+    
+public:
+    BARTPolygon() {
+        mType = POLY;
+    }
+
+public:
+    inline size_t Count() const {
+        return mPts.size();
+    }
+    
+    inline const BARTVec3& At(int index) const {
+        return mPts[index];
+    }
+    
+    inline void Add(const BARTVec3& vec) {
+        mPts.push_back(vec);
+    }
+
+};
+
+class BARTPolygonPatch : public BARTShape {
+public:
+    struct Patch {
+        BARTVec3 pt;
+        BARTVec3 norm;
+    };
+    
+public:
+    vector<Patch> mPatches;
+    
+public:
+    BARTPolygonPatch() {
+        mType = POLY_PATCH;
+    }
+    
+public:
+    inline size_t Count() const {
+        return mPatches.size();
+    }
+    
+    inline const BARTPolygonPatch::Patch& At(int index) const {
+        return mPatches[index];
+    }
+    
+    inline void Add(const BARTPolygonPatch::Patch& patch) {
+        mPatches.push_back(patch);
+    }
     
 };
 
@@ -137,6 +197,9 @@ public:
     
     void DoneParser(void);
     
+public:
+    BARTSceneInfo& GetSceneInfo();
+    
 private:
     // underlying parser's functions
     bool parse_comment(FILE *scene);
@@ -146,11 +209,18 @@ private:
     bool parse_material(FILE *scene); //
     bool parse_cone(FILE *scene);
     bool parse_sphere(FILE *scene);
+    bool parse_polygon(FILE *scene);
+    bool parse_include(FILE *scene);
+    bool parse_detail_level(FILE *scene);
+    
+private:
+    void cleanup();
     
 private:
     int mObjCounter;
     string mObjID;
     BARTSceneInfo mSceneInfo;
+    int mDetailLevel;
     
 };
 

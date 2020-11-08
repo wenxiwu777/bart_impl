@@ -7,7 +7,7 @@
 //
 
 #include "BARTParser.h"
-  
+
 namespace BART {
 
 ////
@@ -33,10 +33,7 @@ BARTParser::~BARTParser() {
 
 //
 void BARTParser::InitParser(void) {
-    mObjCounter = 0;
-    mObjID.clear();
-    
-    mSceneInfo.mMats.clear();
+    cleanup();
     
 }
 
@@ -86,6 +83,18 @@ bool BARTParser::ParseFile(const char *path) {
         case 's':
             failed = parse_sphere(scene);
             break;
+        //
+        case 'p':
+            failed = parse_polygon(scene);
+            break;
+        //
+        case 'i':
+            failed = parse_include(scene);
+            break;
+        //
+        case 'd':
+            failed = parse_detail_level(scene);
+            break;
         default:
             printf("reached unknown AFF instruction\n");
             failed = true;
@@ -104,13 +113,12 @@ bool BARTParser::ParseFile(const char *path) {
 }
 
 void BARTParser::DoneParser(void) {
-    mSceneInfo.mMats.clear();
+    cleanup();
     
-    for (auto &item : mSceneInfo.mObjs) {
-        delete item.second;
-    }
-    mSceneInfo.mObjs.clear();
-    
+}
+
+BARTSceneInfo& BARTParser::GetSceneInfo() {
+    return mSceneInfo;
 }
 
 //
@@ -334,6 +342,102 @@ bool BARTParser::parse_sphere(FILE *scene) {
     mSceneInfo.mObjs.insert(std::make_pair(mObjID, shpere));
     
     return true;
+}
+
+bool BARTParser::parse_polygon(FILE *scene) {
+    int is_patch;
+    int nverts;
+    int q;
+    
+    is_patch = getc(scene);
+    if (is_patch != 'p') {
+        ungetc(is_patch, scene);
+        is_patch = 0;
+    }
+   
+    if (fscanf(scene, "%d", &nverts) != 1) {
+        printf("polygon or patch syntax error\n");
+        return false;
+    }
+    
+    if (is_patch) {
+        BARTPolygonPatch *poly_path = new BARTPolygonPatch;
+        for (q = 0; q < nverts; q++) {
+            BARTPolygonPatch::Patch patch;
+            
+            if(fscanf(scene, " %f %f %f", &patch.pt.x, &patch.pt.y, &patch.pt.z) != 3) {
+                printf("polygon patch(v) syntax error\n");
+                return false;
+            }
+           
+            if(fscanf(scene, " %f %f %f", &patch.norm.x, &patch.norm.y, &patch.norm.z) != 3) {
+                printf("polygon patch(n) syntax error\n");
+                return false;
+            }
+            
+            poly_path->Add(patch);
+        }
+        mSceneInfo.mObjs.insert(std::make_pair(mObjID, poly_path));
+    } else {
+        BARTPolygon *poly = new BARTPolygon;
+        for (q = 0; q < nverts; q++) {
+            BARTVec3 vec;
+            
+            if(fscanf(scene, " %f %f %f", &vec.x, &vec.y, &vec.z) != 3) {
+                printf("polygon syntax error\n");
+                return false;
+            }
+            
+            poly->Add(vec);
+        }
+        mSceneInfo.mObjs.insert(std::make_pair(mObjID, poly));
+    }
+    
+    return true;
+}
+
+bool BARTParser::parse_include(FILE *scene) {
+    char filename[100];
+    memset(filename, 0, sizeof(filename));
+    int detail_level;
+    
+    if (fscanf(scene, "%d %s", &detail_level, filename) != 2) {
+        printf("Error: could not parse include.\n");
+        return false;
+    }
+
+    bool failed = false;
+    if (detail_level <= mDetailLevel) {
+        failed = ParseFile(filename);  // parse the file recursively
+    } else {
+        printf("Skipping include file: %s\n",filename);
+    }
+    
+    return failed;
+}
+
+bool BARTParser::parse_detail_level(FILE *scene) {
+    if (fscanf(scene, "%d", &mDetailLevel) != 1) {
+        printf("Error: could not parse detail level.\n");
+        return false;
+    }
+    
+    return true;
+}
+
+//
+void BARTParser::cleanup() {
+    mObjCounter = 0;
+    mObjID.clear();
+    
+    mSceneInfo.mMats.clear();
+        
+    for (auto &item : mSceneInfo.mObjs) {
+        delete item.second;
+    }
+    mSceneInfo.mObjs.clear();
+    
+    mDetailLevel = 0;
 }
 
 }
