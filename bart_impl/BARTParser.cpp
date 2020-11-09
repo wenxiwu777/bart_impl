@@ -9,7 +9,7 @@
 #include "BARTParser.h"
 
 namespace BART {
-
+ 
 ////
 BARTSceneInfo::BARTSceneInfo() {
     
