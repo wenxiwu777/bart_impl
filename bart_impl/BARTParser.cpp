@@ -95,6 +95,10 @@ bool BARTParser::ParseFile(const char *path) {
         case 'd':
             failed = parse_detail_level(scene);
             break;
+        //
+        case 't':
+            failed = parse_triangle_series(scene);
+            break;
         default:
             printf("reached unknown AFF instruction\n");
             failed = true;
@@ -421,6 +425,133 @@ bool BARTParser::parse_detail_level(FILE *scene) {
         printf("Error: could not parse detail level.\n");
         return false;
     }
+    
+    return true;
+}
+
+bool BARTParser::parse_triangle_series(FILE *scene) {
+    bool result = true;
+    int tri_tag = getc(scene);
+    if (tri_tag == 't') { // tt
+        result = parse_non_anim_triangle(scene);
+        
+    } else if (tri_tag == 'p') {
+        tri_tag = getc(scene);
+        if (tri_tag == 'a') { // tpa
+            result = parse_anim_triangle(scene);
+            
+        } else {
+            printf("Error: could not parse triangle series\n");
+            result = false;
+        }
+    } else {
+        printf("Error: could not parse triangle series\n");
+        result = false;
+    }
+    
+    return result;
+}
+
+//
+bool BARTParser::parse_non_anim_triangle(FILE *scene) {
+    int is_patch;
+    int q;
+    char texturename[100];
+    memset(texturename, 0, sizeof(texturename));
+    
+    is_patch = getc(scene);
+    if (is_patch != 'p') {
+        ungetc(is_patch, scene);
+        is_patch = 0;
+    } // !ttp
+        
+    fscanf(scene, "%s", texturename);
+    
+    bool result = true;
+    if (is_patch) {
+        BARTTexTrianglePatch *ttp = new BARTTexTrianglePatch;
+        ttp->mTexName = (char *)texturename;
+        
+        for (q = 0; q < 3; ++q) {
+            if (fscanf(scene, " %f %f %f", &(ttp->mVec[q].x), &(ttp->mVec[q].y), &(ttp->mVec[q].z)) != 3) {
+                result = false;
+                break;
+            }
+            
+            if (fscanf(scene, " %f %f %f", &(ttp->mNorm[q].x), &(ttp->mNorm[q].y), &(ttp->mNorm[q].z)) !=3) {
+                result = false;
+                break;
+            }
+            
+            if (fscanf(scene, " %f %f ", &(ttp->mTexCoord[q].u), &(ttp->mTexCoord[q].v)) != 2) {
+                result = false;
+                break;
+            }
+        }
+        
+        if (result) {
+            mSceneInfo.mObjs.insert(std::make_pair(mObjID, ttp));
+        }
+    } else {
+        BARTTexTriangle *tt = new BARTTexTriangle;
+        tt->mTexName = (char *)texturename;
+        
+        for (q = 0; q < 3; ++q) {
+            if (fscanf(scene, " %f %f %f", &(tt->mVec[q].x), &(tt->mVec[q].y), &(tt->mVec[q].z)) != 3) {
+                result = false;
+                break;
+            }
+            
+            if (fscanf(scene, " %f %f ", &(tt->mTexCoord[q].u), &(tt->mTexCoord[q].v)) != 2) {
+                result = false;
+                break;
+            }
+        }
+        
+        if (result) {
+            mSceneInfo.mObjs.insert(std::make_pair(mObjID, tt));
+        }
+    }
+    
+    if (!result) {
+        printf("Error: could not parse textured triangle data(may be vertex/normal/uv)\n");
+    }
+    
+    return result;
+}
+
+bool BARTParser::parse_anim_triangle(FILE *scene) {
+    int q, w;
+    int num_times;
+    
+    fscanf(scene, "%d", &num_times);
+    
+    BARTAnimatedTriangle *tpa = new BARTAnimatedTriangle;
+    tpa->mNumTimes = num_times;
+    
+    for (q = 0; q < num_times; ++q) {
+        float timestamp;
+        if (fscanf(scene, " %f", &timestamp) != 1) {
+            printf("Error: could not parse animated triangle(timestamp)\n");
+            return false;
+        }
+        
+        BARTTrianglePatch tp;
+        for (w = 0; w < 3; ++w) {
+            if (fscanf(scene, " %f %f %f", &(tp.mVec[w].x), &(tp.mVec[w].y), &(tp.mVec[w].z)) != 3) {
+                printf("Error: could not parse animated triangle(vertex)\n");
+                return false;
+            }
+            
+            if (fscanf(scene, " %f %f %f", &(tp.mNorm[w].x), &(tp.mNorm[w].y), &(tp.mNorm[w].z)) != 3) {
+                printf("Error: could not parse animated triangle(normal)\n");
+                return false;
+            }
+        }
+        tpa->AddOneTrianglePatch(timestamp, tp);
+    }
+    
+    mSceneInfo.mObjs.insert(std::make_pair(mObjID, tpa));
     
     return true;
 }

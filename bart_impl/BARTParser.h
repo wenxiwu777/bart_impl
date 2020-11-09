@@ -28,6 +28,11 @@ struct BARTVec3 {
     float z;
 };
 
+struct BARTTexCoord {
+    float u;
+    float v;
+};
+
 struct BARTView {
     BARTVec3 from;
     BARTVec3 at;
@@ -69,6 +74,10 @@ public:
         SHPERE,
         POLY,
         POLY_PATCH,
+        TEX_TRIANGLE,
+        TEX_TRIANGLE_PATCH,
+        TRIANGLE_PATCH,
+        ANIMATED_TRIANGLE,
         MESH, };
     
 public:
@@ -166,6 +175,104 @@ public:
     
 };
 
+class BARTTexTriangle : public BARTShape {
+public:
+    string mTexName;
+    BARTVec3 mVec[3];
+    BARTTexCoord mTexCoord[3];
+    
+public:
+    BARTTexTriangle() {
+        mType = TEX_TRIANGLE;
+    }
+    
+public:
+    inline void SetVertex(int i, const BARTVec3& v) {
+        mVec[i] = v;
+    }
+    inline void SetTexCoord(int i, const BARTTexCoord& texCoord) {
+        mTexCoord[i] = texCoord;
+    }
+    
+    inline const BARTVec3& GetVertex(int i) const {
+        return mVec[i];
+    }
+    inline const BARTTexCoord& GetTexCoord(int i) const {
+        return mTexCoord[i];
+    }
+    
+};
+
+class BARTTexTrianglePatch : public BARTTexTriangle {
+public:
+    BARTVec3 mNorm[3];
+    
+public:
+    BARTTexTrianglePatch() {
+        mType = TEX_TRIANGLE_PATCH;
+    }
+    
+public:
+    inline void SetNormal(int i, const BARTVec3& norm) {
+        mNorm[i] = norm;
+    }
+    
+    inline const BARTVec3& GetNormal(int i) const {
+        return mNorm[i];
+    }
+    
+};
+
+class BARTTrianglePatch : public BARTShape {
+public:
+    BARTVec3 mVec[3];
+    BARTVec3 mNorm[3];
+    
+public:
+    BARTTrianglePatch() {
+        mType = TRIANGLE_PATCH;
+    }
+    
+public:
+    inline void SetVertex(int i, const BARTVec3& v) {
+        mVec[i] = v;
+    }
+    inline const BARTVec3& GetVertex(int i) const {
+        return mVec[i];
+    }
+
+    inline void SetNormal(int i, const BARTVec3& norm) {
+        mNorm[i] = norm;
+    }
+    inline const BARTVec3& GetNormal(int i) const {
+        return mNorm[i];
+    }
+};
+
+class BARTAnimatedTriangle : public BARTShape {
+public:
+    int mNumTimes;
+    vector<float> mTimestamp;
+    vector<BARTTrianglePatch> mTPs;
+    
+public:
+    BARTAnimatedTriangle() {
+        mType = ANIMATED_TRIANGLE;
+        
+        mNumTimes = 0;
+        mTimestamp.clear();
+        mTPs.clear();
+    }
+    
+public:
+    inline void AddOneTrianglePatch(float timestamp, const BARTTrianglePatch& tp) {
+        mTimestamp.push_back(timestamp);
+        mTPs.push_back(tp);
+        
+    }
+    
+};
+
 //
 class BARTSceneInfo {
 public:
@@ -212,6 +319,11 @@ private:
     bool parse_polygon(FILE *scene);
     bool parse_include(FILE *scene);
     bool parse_detail_level(FILE *scene);
+    bool parse_triangle_series(FILE *scene);
+    
+private:
+    bool parse_non_anim_triangle(FILE *scene);
+    bool parse_anim_triangle(FILE *scene);
     
 private:
     void cleanup();
