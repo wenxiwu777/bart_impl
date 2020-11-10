@@ -81,6 +81,9 @@ public:
         MESH, };
     
 public:
+    int mMaterialID;
+    
+public:
     BARTShape() {
         mType = UNKNOWN;
     }
@@ -273,6 +276,24 @@ public:
     
 };
 
+class BARTMesh : public BARTShape {
+public:
+    BARTMesh() {
+        mType = MESH;
+        
+        
+    }
+    
+public:
+    // they will be used later in the setting up scene or generate scene phases.
+    BARTVec3 mScale, mTranslate, mRotate;
+    float mRotationAngle;
+    
+    // Todo ...
+    // NOT completed yet!!
+    // ...
+};
+
 //
 class BARTSceneInfo {
 public:
@@ -320,16 +341,31 @@ private:
     bool parse_include(FILE *scene);
     bool parse_detail_level(FILE *scene);
     bool parse_triangle_series(FILE *scene);
+    bool parse_XForm(FILE *scene);
     
 private:
     bool parse_non_anim_triangle(FILE *scene);
     bool parse_anim_triangle(FILE *scene);
     
-private:
-    void cleanup();
+    void eat_white_space(FILE *scene);
+    
+    void end_parse_xform(void);
     
 private:
-    int mObjCounter;
+    void cleanup();
+    void reset_RTS_vectors();
+    
+private:
+    int mMaterialIndex; // it may be used as material id later probably, cause material is attached to object
+    // the followings are used as global vars, but only take effect to XS(static form),
+    // i guess the reason is that static form means a mesh object which has its initial coordinate, so we need to
+    // set r/t/s vectors for it as a whole, while single geometric object we can represent by given its inital coordinate.
+    // Very important, when we enter into XS instruction, we assign these vars, then any mesh object is parsed in this scope will share
+    // these vars, afterwards then, these vars will be reset, this is because mesh can be not attached to any XS tag, in other words,
+    // mesh can be independent to any tag but it is accossiated with material and r/t/s vectors.
+    BARTVec3 mScale, mTranslate, mRotate;
+    float mRotationAngle;
+    
     string mObjID;
     BARTSceneInfo mSceneInfo;
     int mDetailLevel;
