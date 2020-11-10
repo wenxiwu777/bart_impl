@@ -12,7 +12,7 @@ namespace BART {
 
 ////
 BARTSceneInfo::BARTSceneInfo() {
-    
+      
 }
 
 BARTSceneInfo::~BARTSceneInfo() {
