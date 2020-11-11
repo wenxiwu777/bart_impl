@@ -12,7 +12,7 @@ namespace BART {
 
 ////
 BARTSceneInfo::BARTSceneInfo() {
-      
+    
 }
 
 BARTSceneInfo::~BARTSceneInfo() {
@@ -110,6 +110,9 @@ bool BARTParser::ParseFile(const char *path) {
             break;
         case '}':
             end_parse_xform();
+            break;
+        case 'a':
+            failed = parse_AmbientOrAnimParams(scene);
             break;
         default:
             printf("reached unknown AFF instruction\n");
@@ -227,7 +230,8 @@ bool BARTParser::parse_light(FILE *scene) {
         return false;
     }
     
-    mSceneInfo.mLight = { pos, col, is_animated, name };
+    BARTLight light = { pos, col, is_animated, name };
+    mSceneInfo.mLights.push_back(light);
     
     return true;
 }
@@ -287,7 +291,7 @@ bool BARTParser::parse_material(FILE *scene) {
         mat.shine = phong_pow;
         mat.T = t;
         mat.IOR = ior;
-        mSceneInfo.mMats.insert(std::make_pair(mObjID, mat));
+        mSceneInfo.mMats.insert(std::make_pair(++mMaterialIndex, mat));
            
     } else {
         if (fscanf(scene, "%f %f %f", &col.x, &col.y, &col.z) != 3) {
@@ -308,7 +312,7 @@ bool BARTParser::parse_material(FILE *scene) {
         mat.shine = phong_pow;
         mat.T = t;
         mat.IOR = ior;
-        mSceneInfo.mMats.insert(std::make_pair(mObjID, mat));
+        mSceneInfo.mMats.insert(std::make_pair(++mMaterialIndex, mat));
 
     }
     
@@ -521,6 +525,36 @@ bool BARTParser::parse_XForm(FILE *scene) {
     return true;
 }
 
+bool BARTParser::parse_AmbientOrAnimParams(FILE *scene) {
+    char ch;
+    int is_ambient;
+    
+    is_ambient = getc(scene);
+    
+    if (is_ambient != 'm') {
+        ungetc(is_ambient, scene);
+        is_ambient = 0;
+    }
+    
+    if (is_ambient) {
+        BARTVec3 amb;
+        if (fscanf(scene, "%f %f %f", &amb.x, &amb.y, &amb.z) !=3 ) {
+            printf("Error: could not parse ambient light (am).\n");
+            return false;
+        }
+        
+        mSceneInfo.mAmbient.ambient_color = amb;
+    } else {
+        if (fscanf(scene, "%f %f %d", &mAnimFrameInfo.start_time, &mAnimFrameInfo.end_time, &mAnimFrameInfo.num_frames) !=3 ) {
+            printf("Error: could not parse animations parameters.\n");
+            return false;
+            
+        }
+    }
+    
+    return true;
+}
+
 //
 bool BARTParser::parse_non_anim_triangle(FILE *scene) {
     int is_patch;
@@ -647,12 +681,18 @@ void BARTParser::end_parse_xform(void) {
 void BARTParser::cleanup() {
     mObjID.clear();
     
+    mSceneInfo.mLights.clear();
+    
     mSceneInfo.mMats.clear();
         
     for (auto &item : mSceneInfo.mObjs) {
         delete item.second;
     }
     mSceneInfo.mObjs.clear();
+    
+    mAnimFrameInfo.start_time = 0.0f;
+    mAnimFrameInfo.end_time = 0.0f;
+    mAnimFrameInfo.num_frames = 0;
 }
 
 void BARTParser::reset_RTS_vectors() {

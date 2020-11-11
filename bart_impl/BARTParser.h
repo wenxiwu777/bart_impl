@@ -57,6 +57,10 @@ struct BARTBackground {
     
 };
 
+struct BARTAmbientLight {
+    BARTVec3 ambient_color;
+};
+
 struct BARTMaterial {
     BARTVec3 amb;
     BARTVec3 diff;
@@ -298,10 +302,12 @@ public:
 class BARTSceneInfo {
 public:
     BARTView mView;
-    BARTLight mLight;
     BARTBackground mBack;
+    BARTAmbientLight mAmbient;
     
-    map<string, BARTMaterial> mMats; // hold all materials in the scene
+    vector<BARTLight> mLights; // hold all lights in the scene
+    
+    map<int, BARTMaterial> mMats; // hold all materials in the scene
     
     map<string, BARTShape *> mObjs; // hold all objects in the scene
     
@@ -312,6 +318,13 @@ public:
 };
 
 //
+struct AnimFrameInfo {
+    float start_time;
+    float end_time;
+    int num_frames;
+    
+};
+
 class BARTParser {
 public:
     BARTParser();
@@ -342,6 +355,7 @@ private:
     bool parse_detail_level(FILE *scene);
     bool parse_triangle_series(FILE *scene);
     bool parse_XForm(FILE *scene);
+    bool parse_AmbientOrAnimParams(FILE *scene);
     
 private:
     bool parse_non_anim_triangle(FILE *scene);
@@ -369,6 +383,8 @@ private:
     string mObjID;
     BARTSceneInfo mSceneInfo;
     int mDetailLevel;
+    
+    AnimFrameInfo mAnimFrameInfo;
     
 };
 
