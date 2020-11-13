@@ -6,6 +6,8 @@
 //  Copyright © 2020 wwx. All rights reserved.
 //
 
+#include "../includes/animation.h"
+
 #include "BARTParser.h"
 
 namespace BART {
@@ -551,6 +553,12 @@ bool BARTParser::parse_AmbientOrAnimParams(FILE *scene) {
             
         }
     }
+    
+    return true;
+}
+
+bool BARTParser::parse_KFrames(FILE *scene) {
+    
     
     return true;
 }

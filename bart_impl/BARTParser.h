@@ -356,6 +356,7 @@ private:
     bool parse_triangle_series(FILE *scene);
     bool parse_XForm(FILE *scene);
     bool parse_AmbientOrAnimParams(FILE *scene);
+    bool parse_KFrames(FILE *scene); // 解析 k x 指令配对的关键帧列表 parse the list of key frames taged with k-x pair.
     
 private:
     bool parse_non_anim_triangle(FILE *scene);
