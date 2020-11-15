@@ -120,6 +120,9 @@ bool BARTParser::ParseFile(const char *path) {
         case 'k':
             failed = parse_KFrames(scene);
             break;
+        case 'm':
+            failed = parse_mesh(scene);
+            break;
         default:
             printf("reached unknown AFF instruction\n");
             failed = true;
@@ -693,6 +696,64 @@ bool BARTParser::parse_KFrames(FILE *scene) {
     return true;
 }
 
+bool BARTParser::parse_mesh(FILE *scene) {
+    char strid[256];
+    int num_verts,num_norms,num_txts,num_tris;
+    BARTVec3 *verts = nullptr;
+    BARTVec3 *norms = nullptr;
+    BARTTexCoord *texs = nullptr;
+    unsigned short *indices;
+    char tex_name[256];
+    
+    memset(strid, 0, sizeof(strid));
+    memset(tex_name, 0, sizeof(tex_name));
+    
+    if (fscanf(scene, "%s", strid) != 1) {
+        printf("Error: could not parse mesh (could not find 'vertices').\n");
+        return false;
+    }
+    
+    if (strcmp((const char *)strid, "vertices")) {
+        printf("Error: could not parse mesh (expected 'vertices').\n");
+        return false;
+    }
+    
+    //getVectors(fp,"vertices",&num_verts,&verts);
+    if (!read_vectors(scene, "vertices", &num_verts, &verts)) {
+        return false;
+    }
+
+    fscanf(scene, "%s", strid);
+    if (!strcmp((const char *)strid, "normals")) {
+        //getVectors(fp,"normals",&num_norms,&norms);
+        if (!read_vectors(scene, "normals", &num_norms, &norms)) {
+            return false;
+        }
+        fscanf(scene, "%s", strid);
+    }
+    
+    if (!strcmp((const char *)strid, "texturecoords")) {
+        //getTextureCoords(fp,texturename,&num_txts,&txts);
+        if (!read_textures(scene, tex_name, &num_txts, &texs)) {
+            return false;
+        }
+        fscanf(scene, "%s", strid);
+    }
+    
+    if (!strcmp((const char *)strid, "triangles")) {
+        //getTriangles(fp,&num_tris,&indices,verts,norms,txts);
+        if (!read_triangles(scene, &num_tris, &indices, verts, norms, texs)) {
+            return false;
+        }
+    }
+    else {
+        printf("Error: expected 'triangles' in mesh.\n");
+        return false;
+    }
+    
+    return true;
+}
+
 //
 bool BARTParser::parse_non_anim_triangle(FILE *scene) {
     int is_patch;
@@ -796,6 +857,131 @@ bool BARTParser::parse_anim_triangle(FILE *scene) {
     
     tpa->mMaterialID = mMaterialIndex;
     mSceneInfo.mObjs.insert(std::make_pair(mObjID, tpa));
+    
+    return true;
+}
+
+bool BARTParser::read_vectors(FILE *scene, const char *type, int *numVecs, BARTVec3 **vecs) {
+    int num, q;
+    BARTVec3 *verts = NULL;
+
+    if (fscanf(scene, "%d", &num) != 1) {
+        printf("Error: could not parse mesh (expected 'num_%s').\n", type);
+        return false;
+    }
+
+    verts = (BARTVec3*)malloc(sizeof(BARTVec3)*num);
+    if (verts == nullptr) {
+        printf("Error: could not allocate memory for vertices of mesh.\n");
+        return false;
+    }
+       
+    for (q=0; q<num; ++q) {
+        if (fscanf(scene, "%f %f %f ", &verts[q].x, &verts[q].y, &verts[q].z) != 3) {
+            printf("Error: could not read %d %s of mesh.\n", num, type);
+            return false;
+        }
+    }
+    
+    *vecs = verts;
+    *numVecs = num;
+    
+    return true;
+}
+
+bool BARTParser::read_textures(FILE *scene, char *textureName, int *numTexs, BARTTexCoord **texs) {
+    int q;
+    int num_texs;
+    BARTTexCoord *texs_;
+    
+    if (fscanf(scene, "%d", &num_texs) !=1 ) {
+        printf("Error: could not parse mesh (expected 'num_txts').\n");
+        return false;
+    }
+    
+    texs_ = (BARTTexCoord*)malloc(sizeof(BARTTexCoord)*num_texs);
+    if (texs_ == nullptr) {
+        printf("Error: could not allocate memory for texturecoords of mesh.\n");
+        return false;
+    }
+    
+    fscanf(scene, "%s", textureName);
+    for (q = 0; q < num_texs; ++q) {
+        if (fscanf(scene, "%f %f", &texs_[q].u, &texs_[q].v) != 2) {
+            printf("Error: could not read %d texturecoords of mesh.\n", num_texs);
+            return false;
+        }
+    }
+    
+    *numTexs = num_texs;
+    *texs = texs_;
+    
+    return true;
+}
+
+bool BARTParser::read_triangles(FILE *scene, int *num_tris, unsigned short **indices, BARTVec3 *verts, BARTVec3 *norms, BARTTexCoord *texs) {
+    int num;
+    int q, w;
+    int alloc_size;
+    unsigned short *idx;
+    int i, v[3], n[3], t[3];
+       
+    alloc_size = 3;
+    
+    if (norms) {
+        alloc_size += 3;
+    }
+    
+    if (texs) {
+        alloc_size += 3;
+    }
+       
+    if (fscanf(scene, "%d", &num) != 1) {
+        printf("Error: could not parse mesh (expected 'num_triangles').\n");
+        return  false;;
+    }
+
+    idx = (unsigned short *)malloc(num*alloc_size*sizeof(unsigned short));
+    if (idx == nullptr) {
+        printf("Error: could not allocate memory for indices of mesh.\n");
+        return false;
+    }
+    
+    i = 0;
+    for (q = 0; q < num; ++q) {
+        if (fscanf(scene, "%d %d %d", &v[0], &v[1], &v[2]) != 3) {
+            printf("Error: could not read %d vertex indices of mesh.\n", num);
+            return false;
+        }
+
+        if (norms) {
+            if (fscanf(scene, "%d %d %d", &n[0], &n[1], &n[2]) != 3) {
+                printf("Error: could not read %d set of normal indices of mesh.\n", num);
+                return false;
+            }
+        }
+          
+        if (texs) {
+            if (fscanf(scene, "%d %d %d", &t[0], &t[1], &t[2]) != 3) {
+                printf("Error: could not read %d texturecoord indices of mesh.\n", num);
+                return false;
+            }
+        }
+          
+        // indices appear in this order: [texture] [normals] vertices. []=optional
+        for ( w= 0; w < 3; ++w) {
+            if (texs) {
+                idx[i++] = t[w];
+            }
+            if (norms) {
+                idx[i++] = n[w];
+            }
+            idx[i++] = v[w];
+        }
+    }
+    
+    *indices = idx;
+    *num_tris = num;
     
     return true;
 }

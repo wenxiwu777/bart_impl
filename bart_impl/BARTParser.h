@@ -359,10 +359,15 @@ private:
     bool parse_XForm(FILE *scene);
     bool parse_AmbientOrAnimParams(FILE *scene);
     bool parse_KFrames(FILE *scene); // 解析 k x 指令配对的关键帧列表 parse the list of key frames taged with k-x pair.
+    bool parse_mesh(FILE *scene);
     
 private:
     bool parse_non_anim_triangle(FILE *scene);
     bool parse_anim_triangle(FILE *scene);
+    
+    bool read_vectors(FILE *scene, const char *type, int *numVecs, BARTVec3 **vecs);
+    bool read_textures(FILE *scene, char *textureName, int *numTexs, BARTTexCoord **texs);
+    bool read_triangles(FILE *scene, int *num_tris, unsigned short **indices, BARTVec3 *verts, BARTVec3 *norms, BARTTexCoord *texs);
     
     void eat_white_space(FILE *scene);
     
