@@ -20,6 +20,8 @@ using std::vector;
 using std::string;
 using std::map;
 
+#include "../includes/animation.h"
+
 namespace BART {
 
 struct BARTVec3 {
@@ -386,6 +388,8 @@ private:
     int mDetailLevel;
     
     AnimFrameInfo mAnimFrameInfo;
+    
+    AnimationList *mpAnimList;
     
 };
 

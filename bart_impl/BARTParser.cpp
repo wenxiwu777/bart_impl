@@ -6,7 +6,7 @@
 //  Copyright © 2020 wwx. All rights reserved.
 //
 
-#include "../includes/animation.h"
+//#include "../includes/animation.h"
 
 #include "BARTParser.h"
 
@@ -42,6 +42,7 @@ void BARTParser::InitParser(void) {
     
     cleanup();
     
+    mpAnimList = nullptr;
 }
 
 bool BARTParser::ParseFile(const char *path) {
@@ -115,6 +116,9 @@ bool BARTParser::ParseFile(const char *path) {
             break;
         case 'a':
             failed = parse_AmbientOrAnimParams(scene);
+            break;
+        case 'k':
+            failed = parse_KFrames(scene);
             break;
         default:
             printf("reached unknown AFF instruction\n");
@@ -528,7 +532,7 @@ bool BARTParser::parse_XForm(FILE *scene) {
 }
 
 bool BARTParser::parse_AmbientOrAnimParams(FILE *scene) {
-    char ch;
+//    char ch;
     int is_ambient;
     
     is_ambient = getc(scene);
@@ -558,7 +562,133 @@ bool BARTParser::parse_AmbientOrAnimParams(FILE *scene) {
 }
 
 bool BARTParser::parse_KFrames(FILE *scene) {
+    char name[256];
+    char motion[256];
+    char ch;
+    int visibility;
+    int  ret, i, key_frame_number;
+    float time, x, y, z, angle, te, co, bi;
+    PositionKey *pos_keys;
+    RotationKey *rot_keys;
+    Animation *animation;
+    struct AnimationList *animationlist;
     
+    memset(name, 0, sizeof(name));
+    memset(motion, 0, sizeof(motion));
+    
+    if (fscanf(scene, "%s", name) !=1) {
+        printf("Error: could not read name of animation.\n");
+        return false;
+    }
+    
+    this->eat_white_space(scene);
+    
+    ch = getc(scene);
+    
+    if (ch != '{') {
+        printf("Error: syntax error, could not find a { in animation %s.\n", name);
+        return false;
+    }
+    
+    animationlist = (struct AnimationList*)calloc(1, sizeof(struct AnimationList));
+    if (!animationlist) {
+        printf("Error: failed to allocate animation list!\n");
+        return false;
+    }
+    
+    animationlist->next = mpAnimList;
+    mpAnimList = animationlist;
+    animation = &(animationlist->animation);
+    
+    animation->name = (char *)malloc(sizeof(name));
+    strcpy(animation->name, name);
+    
+    animation->translations = nullptr;
+    animation->rotations = nullptr;
+    animation->scales = nullptr;
+    animation->visibilities = nullptr;
+    
+    this->eat_white_space(scene);
+    
+    while ((ch = getc(scene)) != '}') {
+        ungetc(ch, scene);
+        
+        if (fscanf(scene, "%s %d", motion, &key_frame_number) != 2) {
+            printf("Error: could not read name of motion or number of keyframes for animation.\n");
+            return false;
+        }
+        
+        if (key_frame_number < 4 && strcmp("visibility", (const char *)motion)) {
+            printf("Error: there must be at least 4 keyframes for %s.\n", name);
+            return false;
+        }
+        
+        if (strcmp((const char *)motion, "transl") == 0
+            || strcmp((const char *)motion, "scale") == 0) {
+            pos_keys = (PositionKey*)calloc(key_frame_number, sizeof(PositionKey));
+            for (i = 0; i < key_frame_number; ++i) {
+                ret = fscanf(scene, " %f %f %f %f %f %f %f", &time, &x, &y, &z, &te, &co, &bi);
+                if(ret != 7) {
+                    printf("error in parsing translation or scale keyframes for %s\n", animation->name);
+                    return false;
+                }
+                pos_keys[i].t = time;
+                pos_keys[i].P.x = x;
+                pos_keys[i].P.y = y;
+                pos_keys[i].P.z = z;
+                pos_keys[i].tension = te;
+                pos_keys[i].continuity = co;
+                pos_keys[i].bias = bi;
+            }
+            if (strcmp((const char *)motion, "transl") == 0) {
+                animation->translations = KB_PosInitialize(key_frame_number, pos_keys);
+            }
+            else {
+                animation->scales = KB_PosInitialize(key_frame_number, pos_keys);
+            }
+            free(pos_keys);
+        }
+        else if (strcmp((const char *)motion, "rot") == 0) {
+            rot_keys = (RotationKey*)calloc(key_frame_number, sizeof(RotationKey));
+            for (i=0; i < key_frame_number; ++i) {
+                ret = fscanf(scene," %f %f %f %f %f %f %f %f", &time, &x, &y, &z, &angle, &te, &co, &bi);
+                if(ret != 8) {
+                    printf("error in parsing rotation keyframes for %s\n", animation->name);
+                    return false;
+                }
+                rot_keys[i].t = time;
+                rot_keys[i].Rot.x = x;
+                rot_keys[i].Rot.y = y;
+                rot_keys[i].Rot.z = z;
+                rot_keys[i].Rot.angle = angle*M_PI/180.0;
+                rot_keys[i].tension = te;
+                rot_keys[i].continuity = co;
+                rot_keys[i].bias = bi;
+            }
+            animation->rotations = KB_RotInitialize(key_frame_number, rot_keys);
+            free(rot_keys);
+        }
+        else if (strcmp((const char *)motion, "visibility") == 0) {
+            VisKey *vis_keys = (VisKey*)calloc(key_frame_number, sizeof(VisKey));
+            for (i=0; i < key_frame_number; ++i) {
+                ret = fscanf(scene, " %f %d", &time, &visibility);
+                if(ret != 2) {
+                    printf("error in parsing visibility keyframes for %s\n", animation->name);
+                    return false;
+                }
+                vis_keys[i].time = time;
+                vis_keys[i].visibility = visibility;
+             }
+             animation->visibilities = vis_keys;
+             animation->numVisibilities += key_frame_number;
+        }
+        else {
+            printf("Error: unknown keyframe type (%s). Must be transl, rot, or scale.\n", motion);
+            return false;
+        }
+        
+        this->eat_white_space(scene);
+    }
     
     return true;
 }
@@ -701,6 +831,29 @@ void BARTParser::cleanup() {
     mAnimFrameInfo.start_time = 0.0f;
     mAnimFrameInfo.end_time = 0.0f;
     mAnimFrameInfo.num_frames = 0;
+    
+    AnimationList *al = mpAnimList;
+    while (al != nullptr) {
+        if (al->animation.name != nullptr) {
+            free(al->animation.name);
+        }
+        if (al->animation.translations != nullptr) {
+            KB_PosTerminate(al->animation.translations);
+        }
+        if (al->animation.rotations != nullptr) {
+        //    KB_RotTerminate(al->animation.rotations);
+        }
+        if (al->animation.scales != nullptr) {
+        //    KB_PosTerminate(al->animation.scales);
+        }
+        if (al->animation.visibilities != nullptr) {
+            free(al->animation.visibilities);
+        }
+        AnimationList *temp = al;
+        al = al->next;
+        free(temp);
+    }
+
 }
 
 void BARTParser::reset_RTS_vectors() {
