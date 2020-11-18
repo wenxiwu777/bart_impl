@@ -10,6 +10,10 @@
 
 #include "BARTParser.h"
 
+#ifndef M_PI
+#define M_PI 3.141593
+#endif // M_PI
+
 namespace BART {
 
 ////
@@ -750,6 +754,11 @@ bool BARTParser::parse_mesh(FILE *scene) {
         printf("Error: expected 'triangles' in mesh.\n");
         return false;
     }
+    
+    // push it to object lits
+    BARTMesh *mesh = new BARTMesh;
+    mesh->GenMeshDesc(num_tris, indices, verts, norms, texs);
+    mSceneInfo.mObjs.insert(std::make_pair(mObjID, mesh));
     
     return true;
 }

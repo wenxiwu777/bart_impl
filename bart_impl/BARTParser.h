@@ -21,8 +21,13 @@ using std::string;
 using std::map;
 
 #include "../includes/animation.h"
+#include "../includes/raytracer_engine/MeshDesc.h"
+#include "../includes/raytracer_engine/ResourcePool.h"
 
 namespace BART {
+
+using LaplataRayTracer::MeshDesc;
+using LaplataRayTracer::ResourcePool;
 
 struct BARTVec3 {
     float x;
@@ -284,13 +289,6 @@ public:
 
 class BARTMesh : public BARTShape {
 public:
-    BARTMesh() {
-        mType = MESH;
-        
-        
-    }
-    
-public:
     // they will be used later in the setting up scene or generate scene phases.
     BARTVec3 mScale, mTranslate, mRotate;
     float mRotationAngle;
@@ -298,6 +296,24 @@ public:
     // Todo ...
     // NOT completed yet!!
     // ...
+    int mMeshID;
+    MeshDesc *mpMeshDesc;
+    
+public:
+    BARTMesh() {
+        mType = MESH;
+        
+    }
+    
+public:
+    virtual void GenMeshDesc(int numTris, unsigned short *indices, BARTVec3 *verts, BARTVec3 *normal, BARTTexCoord *texs) {
+        mMeshID = ResourcePool::Instance()->AllocMesh();
+        mpMeshDesc = ResourcePool::Instance()->QueryMesh(mMeshID);
+        
+        
+        
+    }
+    
 };
 
 //
