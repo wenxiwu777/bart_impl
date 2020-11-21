@@ -23,11 +23,14 @@ using std::map;
 #include "../includes/animation.h"
 #include "../includes/raytracer_engine/MeshDesc.h"
 #include "../includes/raytracer_engine/ResourcePool.h"
+#include "../includes/raytracer_engine/Vec3.h"
 
 namespace BART {
 
 using LaplataRayTracer::MeshDesc;
 using LaplataRayTracer::ResourcePool;
+using LaplataRayTracer::Vec3f;
+using LaplataRayTracer::TriFace;
 
 struct BARTVec3 {
     float x;
@@ -306,12 +309,110 @@ public:
     }
     
 public:
-    virtual void GenMeshDesc(int numTris, unsigned short *indices, BARTVec3 *verts, BARTVec3 *normal, BARTTexCoord *texs) {
+    virtual void GenMeshDesc(int numTris, unsigned short *indices, int numVerts, int numNorms, int numTexs,
+                             BARTVec3 *verts, BARTVec3 *normal, BARTTexCoord *texs) {
         mMeshID = ResourcePool::Instance()->AllocMesh();
         mpMeshDesc = ResourcePool::Instance()->QueryMesh(mMeshID);
         
+        // fill it in
+        if (verts != nullptr && numVerts > 0) {
+            mpMeshDesc->mesh_vertices.reserve(numVerts);
+            for (int i = 0; i < numVerts; ++i) {
+                mpMeshDesc->mesh_vertices.push_back(Vec3f(verts[i].x, verts[i].y, verts[i].z));
+            }
+        }
         
+        if (normal != nullptr && numNorms > 0) {
+            mpMeshDesc->mesh_normal.reserve(numNorms);
+            for (int i = 0; i < numNorms; ++i) {
+                mpMeshDesc->mesh_normal.push_back(Vec3f(0.0f, 0.0f, 0.0f));
+            }
+        }
         
+        if (texs != nullptr && numTexs > 0) {
+            mpMeshDesc->mesh_texU.reserve(numTexs);
+            mpMeshDesc->mesh_texV.reserve(numTexs);
+            for (int u = 0; u < numTexs; ++u) {
+                mpMeshDesc->mesh_texU.push_back(0.0f);
+            }
+            for (int v = 0; v < numTexs; ++v) {
+                mpMeshDesc->mesh_texV.push_back(0.0f);
+            }
+        }
+        
+        if (indices != nullptr && numTris > 0) {
+            if (normal == nullptr) {
+                mpMeshDesc->mesh_vertex_faces.reserve(numVerts);
+                for (int i = 0; i < numVerts; ++i) {
+                    mpMeshDesc->mesh_vertex_faces.push_back(vector<int>());
+                }
+            }
+            
+            // all indices are based on zero(aero-based)
+            int idx_t0, idx_t1, idx_t2;
+            int idx_n0, idx_n1, idx_n2;
+            int idx_v0, idx_v1, idx_v2;
+            
+            int idx = 0;
+            for (int face_idx = 0; face_idx < numTris; ++face_idx) {
+                if (texs != nullptr) {
+                    idx_t0 = indices[idx++];
+                    idx_t1 = indices[idx++];
+                    idx_t2 = indices[idx++];
+                }
+                if (normal != nullptr) {
+                    idx_n0 = indices[idx++];
+                    idx_n1 = indices[idx++];
+                    idx_n2 = indices[idx++];
+                }
+                idx_v0 = indices[idx++];
+                idx_v1 = indices[idx++];
+                idx_v2 = indices[idx++];
+                
+                TriFace face = {idx_v0, idx_v1, idx_v2};
+                mpMeshDesc->mesh_face_datas.push_back(face);
+                
+                if (normal == nullptr) {
+                    // sice the normal info is not given,
+                    // so we need to set up the vertex-face-list
+                    // so that we can calculate per-vertex normal later on.
+                    // all three indices point to the same face id.
+                    mpMeshDesc->mesh_vertex_faces[idx_v0].push_back(face_idx);
+                    mpMeshDesc->mesh_vertex_faces[idx_v1].push_back(face_idx);
+                    mpMeshDesc->mesh_vertex_faces[idx_v2].push_back(face_idx);
+                }
+                else {
+                    // access the normal vector by normal index
+                    mpMeshDesc->mesh_normal[idx_v0].v[0] = normal[idx_n0].x;
+                    mpMeshDesc->mesh_normal[idx_v0].v[1] = normal[idx_n0].y;
+                    mpMeshDesc->mesh_normal[idx_v0].v[2] = normal[idx_n0].z;
+                    
+                    mpMeshDesc->mesh_normal[idx_v1].v[0] = normal[idx_n1].x;
+                    mpMeshDesc->mesh_normal[idx_v1].v[1] = normal[idx_n1].y;
+                    mpMeshDesc->mesh_normal[idx_v1].v[2] = normal[idx_n1].z;
+                    
+                    mpMeshDesc->mesh_normal[idx_v2].v[0] = normal[idx_n2].x;
+                    mpMeshDesc->mesh_normal[idx_v2].v[1] = normal[idx_n2].y;
+                    mpMeshDesc->mesh_normal[idx_v2].v[2] = normal[idx_n2].z;
+                }
+                
+                // finally, we deal with texture u and v
+                if (texs != nullptr) {
+                    mpMeshDesc->mesh_texU[idx_v0] = texs[idx_t0].u;
+                    mpMeshDesc->mesh_texU[idx_v1] = texs[idx_t1].u;
+                    mpMeshDesc->mesh_texU[idx_v2] = texs[idx_t2].u;
+                    
+                    mpMeshDesc->mesh_texV[idx_v0] = texs[idx_t0].v;
+                    mpMeshDesc->mesh_texV[idx_v1] = texs[idx_t1].v;
+                    mpMeshDesc->mesh_texV[idx_v2] = texs[idx_t2].v;
+                }
+                
+            }
+        }
+        
+        mpMeshDesc->mesh_vertex_count = numVerts;
+        mpMeshDesc->mesh_face_count = numTris;
+        mpMeshDesc->mesh_support_uv = (texs != nullptr);
     }
     
 };
@@ -383,7 +484,8 @@ private:
     
     bool read_vectors(FILE *scene, const char *type, int *numVecs, BARTVec3 **vecs);
     bool read_textures(FILE *scene, char *textureName, int *numTexs, BARTTexCoord **texs);
-    bool read_triangles(FILE *scene, int *num_tris, unsigned short **indices, BARTVec3 *verts, BARTVec3 *norms, BARTTexCoord *texs);
+    bool read_triangles(FILE *scene, int *num_tris, unsigned short **indices,
+                        BARTVec3 *verts, BARTVec3 *norms, BARTTexCoord *texs);
     
     void eat_white_space(FILE *scene);
     
