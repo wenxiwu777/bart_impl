@@ -296,9 +296,6 @@ public:
     BARTVec3 mScale, mTranslate, mRotate;
     float mRotationAngle;
     
-    // Todo ...
-    // NOT completed yet!!
-    // ...
     int mMeshID;
     MeshDesc *mpMeshDesc;
     
@@ -394,8 +391,9 @@ public:
                     mpMeshDesc->mesh_normal[idx_v2].v[0] = normal[idx_n2].x;
                     mpMeshDesc->mesh_normal[idx_v2].v[1] = normal[idx_n2].y;
                     mpMeshDesc->mesh_normal[idx_v2].v[2] = normal[idx_n2].z;
+                    
                 }
-                
+    
                 // finally, we deal with texture u and v
                 if (texs != nullptr) {
                     mpMeshDesc->mesh_texU[idx_v0] = texs[idx_t0].u;
@@ -491,12 +489,17 @@ private:
     
     void end_parse_xform(void);
     
+    string path_goto_forward(const string& path, const string& fpath) const;
+    string path_goto_backward(const string& path) const;
+    string gen_object_id(void);
+    
 private:
     void cleanup();
     void reset_RTS_vectors();
     
 private:
     int mMaterialIndex; // it may be used as material id later probably, cause material is attached to object
+    int mObjIndex;
     // the followings are used as global vars, but only take effect to XS(static form),
     // i guess the reason is that static form means a mesh object which has its initial coordinate, so we need to
     // set r/t/s vectors for it as a whole, while single geometric object we can represent by given its inital coordinate.

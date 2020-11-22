@@ -42,6 +42,7 @@ void BARTParser::InitParser(void) {
     reset_RTS_vectors();
     
     mMaterialIndex = 0;
+    mObjIndex = 0;
     mDetailLevel = 0;
     
     cleanup();
@@ -50,6 +51,9 @@ void BARTParser::InitParser(void) {
 }
 
 bool BARTParser::ParseFile(const char *path) {
+    // set up our navigator, the global path
+    mObjID = path_goto_forward(mObjID, path);
+    
     FILE *scene = fopen(path, "r");
     if (!scene) {
         return false;
@@ -139,6 +143,8 @@ bool BARTParser::ParseFile(const char *path) {
             break;
         }
     }
+    
+    mObjID = path_goto_backward(mObjID);
     
     fclose(scene);
     return failed;
@@ -355,7 +361,8 @@ bool BARTParser::parse_cone(FILE *scene) {
     cone->r0 = r0;
     cone->r1 = r1;
     cone->mMaterialID = mMaterialIndex;
-    mSceneInfo.mObjs.insert(std::make_pair(mObjID, cone));
+    
+    mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), cone));
     
     return true;
 }
@@ -374,7 +381,8 @@ bool BARTParser::parse_sphere(FILE *scene) {
     shpere->center = center;
     shpere->radius = radius;
     shpere->mMaterialID = mMaterialIndex;
-    mSceneInfo.mObjs.insert(std::make_pair(mObjID, shpere));
+    
+    mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), shpere));
     
     return true;
 }
@@ -413,7 +421,7 @@ bool BARTParser::parse_polygon(FILE *scene) {
             poly_path->Add(patch);
         }
         poly_path->mMaterialID = mMaterialIndex;
-        mSceneInfo.mObjs.insert(std::make_pair(mObjID, poly_path));
+        mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), poly_path));
     } else {
         BARTPolygon *poly = new BARTPolygon;
         for (q = 0; q < nverts; q++) {
@@ -427,7 +435,7 @@ bool BARTParser::parse_polygon(FILE *scene) {
             poly->Add(vec);
         }
         poly->mMaterialID = mMaterialIndex;
-        mSceneInfo.mObjs.insert(std::make_pair(mObjID, poly));
+        mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), poly));
     }
     
     return true;
@@ -494,8 +502,8 @@ bool BARTParser::parse_XForm(FILE *scene) {
 
     is_static = getc(scene);
     if (is_static != 's') {
-       ungetc(is_static, scene);
-       is_static=0;
+        ungetc(is_static, scene);
+        is_static=0;
     }
 
     if (is_static) {
@@ -505,34 +513,41 @@ bool BARTParser::parse_XForm(FILE *scene) {
                    &mTranslate.x, &mTranslate.y, &mTranslate.z) !=10 ) {
             printf("Error: could not read static transform.\n");
             return false;
-       }
+        }
         
-       this->eat_white_space(scene);
+        this->eat_white_space(scene);
         
-       ch = getc(scene);
-       if (ch != '{') {
+        ch = getc(scene);
+        if (ch != '{') {
            printf("Error: { expected when parsing xs form.\n");
-           return false;
-       }
+            return false;
+        }
 
-      // the actual object is mesh, it will be added to scene info when it parses 'm' instruction.
-      // so we won't add anything herein.
+        // the actual object is mesh, it will be added to scene info when it parses 'm' instruction.
+        // so we won't add anything herein.
+        // but we still need to deep the path.
+        mObjID = path_goto_forward(mObjID, "x_x");
        
     } else {
-       if (fscanf(scene, "%s", name) != 1) {
-           printf("Error: could not read transform name when parsing x form.\n");
-           return false;
-       }
+        if (fscanf(scene, "%s", name) != 1) {
+            printf("Error: could not read transform name when parsing x form.\n");
+            return false;
+        }
         
-       this->eat_white_space(scene);
+        this->eat_white_space(scene);
         
-       ch = getc(scene);
-       if (ch != '{') {
+        ch = getc(scene);
+        if (ch != '{') {
            printf("Error: { expected when parsing x from.\n");
            return false;
-       }
+        }
        
-       // we wont' add anything herein, the reason is as the above.
+        // we wont' add anything herein, the reason is as the above.
+        string sub_path = "xs_";
+        string str_name = (const char *)name;
+        sub_path += str_name;
+        mObjID = path_goto_forward(mObjID, sub_path);
+
     }
     
     return true;
@@ -757,8 +772,13 @@ bool BARTParser::parse_mesh(FILE *scene) {
     
     // push it to object lits
     BARTMesh *mesh = new BARTMesh;
+    mesh->mRotate = mRotate;
+    mesh->mScale = mScale;
+    mesh->mTranslate = mTranslate;
+    mesh->mRotationAngle = mRotationAngle;
+    mesh->mMaterialID = mMaterialIndex;
     mesh->GenMeshDesc(num_tris, indices, num_verts, num_norms, num_texs, verts, norms, texs);
-    mSceneInfo.mObjs.insert(std::make_pair(mObjID, mesh));
+    mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), mesh));
     
     //
     free(verts); verts = nullptr;
@@ -808,7 +828,7 @@ bool BARTParser::parse_non_anim_triangle(FILE *scene) {
         
         if (result) {
             ttp->mMaterialID = mMaterialIndex;
-            mSceneInfo.mObjs.insert(std::make_pair(mObjID, ttp));
+            mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), ttp));
         }
     } else {
         BARTTexTriangle *tt = new BARTTexTriangle;
@@ -828,7 +848,7 @@ bool BARTParser::parse_non_anim_triangle(FILE *scene) {
         
         if (result) {
             tt->mMaterialID = mMaterialIndex;
-            mSceneInfo.mObjs.insert(std::make_pair(mObjID, tt));
+            mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), tt));
         }
     }
     
@@ -871,7 +891,7 @@ bool BARTParser::parse_anim_triangle(FILE *scene) {
     }
     
     tpa->mMaterialID = mMaterialIndex;
-    mSceneInfo.mObjs.insert(std::make_pair(mObjID, tpa));
+    mSceneInfo.mObjs.insert(std::make_pair(gen_object_id(), tpa));
     
     return true;
 }
@@ -983,7 +1003,7 @@ bool BARTParser::read_triangles(FILE *scene, int *num_tris, unsigned short **ind
                 return false;
             }
         }
-          
+        
         // indices appear in this order: [texture] [normals] vertices. []=optional
         for (w = 0; w < 3; ++w) {
             if (texs) {
@@ -1015,6 +1035,34 @@ void BARTParser::end_parse_xform(void) {
     // reset r/t/s vectors
     this->reset_RTS_vectors();
     
+    // go backwards with 2 levels of deep
+    for (int i = 0; i < 2; ++i) {
+        mObjID = path_goto_backward(mObjID);
+    }
+}
+
+string BARTParser::path_goto_forward(const string& path, const string& fpath) const {
+    string ret_path = path;
+    ret_path += "_";
+    ret_path += fpath;
+    return ret_path;
+}
+
+string BARTParser::path_goto_backward(const string& path) const {
+    size_t pos = path.find("_");
+    if (pos == string::npos) {
+        return path;
+    }
+    
+    string ret_path = path.substr(0, pos);
+    return ret_path;
+}
+
+string BARTParser::gen_object_id(void) {
+    ++mObjIndex;
+    string obj_id = mObjID + "+";
+    obj_id += std::to_string(mObjIndex);
+    return obj_id;
 }
 
 //
