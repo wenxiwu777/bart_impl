@@ -14,6 +14,6 @@ int main(int argc, const char * argv[]) {
     size_t len = strlen((const char *)p);
     
     delete [] p;
-    
+     
     return 0;
 }
