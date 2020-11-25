@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		324F13B0256E9DB30095A943 /* TestScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 324F13AF256E9DB30095A943 /* TestScene.cpp */; };
 		32A504A7256106AD00A68B23 /* BARTParser.h in Sources */ = {isa = PBXBuildFile; fileRef = 32300FD72556B5000066A7C6 /* BARTParser.h */; };
 		32B3010F2556B86C0082B9C1 /* BARTParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32B3010E2556B86C0082B9C1 /* BARTParser.cpp */; };
 		32B57CFB2552F9AF00D387DD /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32B57CFA2552F9AF00D387DD /* main.cpp */; };
@@ -47,6 +48,8 @@
 
 /* Begin PBXFileReference section */
 		32300FD72556B5000066A7C6 /* BARTParser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BARTParser.h; sourceTree = "<group>"; };
+		324F13AE256E9CC90095A943 /* TestScene.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TestScene.h; sourceTree = "<group>"; };
+		324F13AF256E9DB30095A943 /* TestScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TestScene.cpp; sourceTree = "<group>"; };
 		32B3010E2556B86C0082B9C1 /* BARTParser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BARTParser.cpp; sourceTree = "<group>"; };
 		32B57CF72552F9AF00D387DD /* bart_impl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = bart_impl; sourceTree = BUILT_PRODUCTS_DIR; };
 		32B57CFA2552F9AF00D387DD /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
@@ -162,6 +165,8 @@
 				32B57CFA2552F9AF00D387DD /* main.cpp */,
 				32300FD72556B5000066A7C6 /* BARTParser.h */,
 				32B3010E2556B86C0082B9C1 /* BARTParser.cpp */,
+				324F13AE256E9CC90095A943 /* TestScene.h */,
+				324F13AF256E9DB30095A943 /* TestScene.cpp */,
 			);
 			path = bart_impl;
 			sourceTree = "<group>";
@@ -337,6 +342,7 @@
 				32A504A7256106AD00A68B23 /* BARTParser.h in Sources */,
 				32B6A099256111A900ACFD93 /* tgaimage.cpp in Sources */,
 				32B6A08D25610BE900ACFD93 /* animation.cpp in Sources */,
+				324F13B0256E9DB30095A943 /* TestScene.cpp in Sources */,
 				32B6A0DB2561124D00ACFD93 /* Noise.cpp in Sources */,
 				32B6A0E72561124D00ACFD93 /* Sampling.cpp in Sources */,
 				32B6A0DA2561124D00ACFD93 /* Reflection.cpp in Sources */,
